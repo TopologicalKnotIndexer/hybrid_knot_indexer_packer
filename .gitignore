@@ -1,5 +1,3 @@
-src/hybrid_knot_indexer_pak.json
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

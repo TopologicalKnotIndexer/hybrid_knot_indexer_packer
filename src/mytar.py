@@ -7,7 +7,7 @@ sys.stderr.write("\033[1;33mWARN\033[0m: do not use this function if you're not 
 
 def gen_updater() -> int: # 生成更新器
     json_obj = gen_dict()
-    json.dump(json_obj, open(json_pack, "w"), ensure_ascii=True)
+    json.dump(json_obj, open(json_pack, "w"), ensure_ascii=True, indent=4)
     return len(json_obj)
 
 def main():
