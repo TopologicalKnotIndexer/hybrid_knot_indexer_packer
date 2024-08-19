@@ -25,7 +25,7 @@ def try_to_erase_file(): # 考虑删除多余文件
     cnt = 0
     for file in real_obj:
         if json_obj.get(file) is None:
-            sys.stderr.write("\032[1;33mDELT\033[0m: file \033[1;32m%s\033[0m is deleted.\n" % file)
+            sys.stderr.write("\033[1;33mDELT\033[0m: file \033[1;32m%s\033[0m is deleted.\n" % file)
             filepath = os.path.join(root_folder, file)
             os.remove(filepath) # 删除指定的文件
             cnt += 1
