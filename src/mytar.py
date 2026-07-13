@@ -1,16 +1,20 @@
-# 用于生成 hybrid_knot_indexer 的 json 打包文件
+"""Generate the JSON/base64 update pack for hybrid_knot_indexer."""
 import json
 import sys
-from common_utils import gen_dict, json_pack
+try:
+    from .common_utils import gen_dict, json_pack
+except ImportError:  # Direct execution from src.
+    from common_utils import gen_dict, json_pack
 
 sys.stderr.write("\033[1;33mWARN\033[0m: do not use this function if you're not the packer.\n")
 
-def gen_updater() -> int: # 生成更新器
+def gen_updater() -> int:
     json_obj = gen_dict()
-    json.dump(json_obj, open(json_pack, "w"), ensure_ascii=True, indent=4)
+    with open(json_pack, "w", encoding="utf-8") as stream:
+        json.dump(json_obj, stream, ensure_ascii=True, indent=4, sort_keys=True)
     return len(json_obj)
 
-def main():
+def main() -> None:
     sys.stderr.write("\033[1;34mINFO\033[0m: generating hybrid_knot_indexer_pak.json [    ].\n")
     cnt = gen_updater()
     sys.stderr.write("\033[1;34mINFO\033[0m: generating hybrid_knot_indexer_pak.json \033[1;32m[DONE]\033[0m.\n")

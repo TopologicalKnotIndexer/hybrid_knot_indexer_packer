@@ -1,53 +1,80 @@
-# 用于将 hybrid_knot_indexer_pak.json 中的数据部署到文件夹中
+"""Apply a JSON/base64 update pack inside the sibling hybrid repository."""
+
+from pathlib import Path
 import base64
+import binascii
 import json
-import os
 import sys
-from common_utils import gen_dict, root_folder, json_pack
 
-if not os.path.isfile(json_pack):
-    sys.stderr.write("\033[1;31mERROR\033[0m: hybrid_knot_indexer_pak.json not found.\n")
-    exit(1)
+try:
+    from .common_utils import HYBRID_DIR, JSON_PACK, ROOT_FOLDER, gen_dict, safe_target
+except ImportError:  # Direct execution from src.
+    from common_utils import HYBRID_DIR, JSON_PACK, ROOT_FOLDER, gen_dict, safe_target
 
-def safe_get_file(filepath: str) -> bytes:
-    if os.path.isfile(filepath):
-        return open(filepath, "rb").read()
-    else:
-        return b''
 
-def create_path_if_not_exist(rawdirname: str): # 一定要注意目标文件夹可能不存在
-    if not os.path.isdir(rawdirname):
-        os.makedirs(rawdirname)
+def load_pack(path: str | Path = JSON_PACK) -> dict[str, bytes]:
+    pack_path = Path(path)
+    if not pack_path.is_file():
+        raise FileNotFoundError(pack_path)
+    raw = json.loads(pack_path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("update pack must be a JSON object")
+    decoded: dict[str, bytes] = {}
+    for relative, payload in raw.items():
+        safe_target(relative)
+        if not isinstance(payload, str):
+            raise ValueError(f"payload for {relative!r} is not base64 text")
+        try:
+            decoded[relative] = base64.b64decode(payload, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError(f"invalid base64 payload for {relative!r}") from exc
+    return decoded
 
-def try_to_erase_file(): # 考虑删除多余文件
-    json_obj = json.load(open(json_pack, "r"))
-    real_obj = gen_dict()
-    cnt = 0
-    for file in real_obj:
-        if json_obj.get(file) is None:
-            sys.stderr.write("\033[1;33mDELT\033[0m: file \033[1;32m%s\033[0m is deleted.\n" % file)
-            filepath = os.path.join(root_folder, file)
-            os.remove(filepath) # 删除指定的文件
-            cnt += 1
-    sys.stderr.write("\033[1;34mINFO\033[0m: totally \033[1;32m%d\033[0m file deleted.\n" % cnt)
 
-def apply_json_pack():
-    json_obj = json.load(open(json_pack, "r"))
-    cnt = 0
-    for file in json_obj:
-        new_content = base64.b64decode(json_obj[file])
-        rawpath     = os.path.join(root_folder, file)
-        old_content = safe_get_file(rawpath)
-        assert isinstance(new_content, bytes)
-        assert isinstance(old_content, bytes)
-        if new_content != old_content or (old_content == b''):
-            sys.stderr.write("\033[1;32mUPDT\033[0m: file updated: \033[1;32m%s\033[0m.\n" % file)
-            rawdirname = os.path.dirname(rawpath)
-            create_path_if_not_exist(rawdirname)
-            open(rawpath, "wb").write(new_content) # 写入新内容
-            cnt += 1
-    sys.stderr.write("\033[1;34mINFO\033[0m: totally \033[1;32m%d\033[0m file changed.\n" % cnt)
+def try_to_erase_file(
+    pack: dict[str, bytes] | None = None,
+    root: str | Path = ROOT_FOLDER,
+    hybrid: str | Path = HYBRID_DIR,
+) -> int:
+    package = load_pack() if pack is None else pack
+    current = gen_dict(root, hybrid)
+    deleted = 0
+    for relative in sorted(set(current) - set(package)):
+        target = safe_target(relative, root, hybrid)
+        if target.is_file():
+            target.unlink()
+            deleted += 1
+            print(f"DELETE: {relative}", file=sys.stderr)
+    return deleted
+
+
+def apply_json_pack(
+    pack: dict[str, bytes] | None = None,
+    root: str | Path = ROOT_FOLDER,
+    hybrid: str | Path = HYBRID_DIR,
+) -> int:
+    package = load_pack() if pack is None else pack
+    changed = 0
+    for relative, content in sorted(package.items()):
+        target = safe_target(relative, root, hybrid)
+        old_content = target.read_bytes() if target.is_file() else None
+        if old_content != content:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            temporary = target.with_name(target.name + ".update-tmp")
+            temporary.write_bytes(content)
+            temporary.replace(target)
+            changed += 1
+            print(f"UPDATE: {relative}", file=sys.stderr)
+    return changed
+
+
+def main() -> int:
+    package = load_pack()
+    deleted = try_to_erase_file(package)
+    changed = apply_json_pack(package)
+    print(f"updated={changed} deleted={deleted}", file=sys.stderr)
+    return 0
+
 
 if __name__ == "__main__":
-    try_to_erase_file()
-    apply_json_pack()
+    raise SystemExit(main())
