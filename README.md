@@ -46,3 +46,16 @@ with temporary-directory tests:
 python -m unittest discover -s tests -v
 ```
 
+## Citation
+
+If you use this repository in academic work, please cite it as:
+
+```bibtex
+@software{topologicalknotindexer_hybrid_knot_indexer_packer,
+  author = {{TopologicalKnotIndexer contributors}},
+  title = {{hybrid\_knot\_indexer\_packer}},
+  year = {2026},
+  url = {https://github.com/TopologicalKnotIndexer/hybrid_knot_indexer_packer}
+}
+```
+
